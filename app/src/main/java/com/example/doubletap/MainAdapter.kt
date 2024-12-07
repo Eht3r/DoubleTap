@@ -6,10 +6,10 @@ import android.view.ViewGroup
 import  androidx.recyclerview.widget.RecyclerView
 import com.example.doubletap.databinding.FolderBinding
 
-class Adapter(
+class MainAdapter(
     private val items: MutableList<Folder>,
     private val itemClickListener: (Folder) -> Unit
-) : RecyclerView.Adapter<Adapter.ViewHolder>() {
+) : RecyclerView.Adapter<MainAdapter.ViewHolder>() {
 
     class ViewHolder(val binding: FolderBinding) : RecyclerView.ViewHolder(binding.root)
 
@@ -29,11 +29,18 @@ class Adapter(
             holder.binding.fileCount.visibility = ViewGroup.VISIBLE
             holder.binding.fileCount.text = "${item.fileCount ?: 0}개의 파일"
         }
-
-        holder.binding.root.setOnClickListener {
+        holder.itemView.setOnClickListener {
             itemClickListener(item)
         }
     }
 
     override fun getItemCount(): Int = items.size
+
+    fun deleteItem(position: Int) {
+        val item = items[position]
+        items.removeAt(position)
+        notifyItemRemoved(position)
+        notifyItemRangeChanged(position, itemCount)
+        item.folder.deleteRecursively()
+    }
 }

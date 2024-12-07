@@ -4,4 +4,5 @@
     <string name="file_couunt">3개의 파일</string>
     <string name="file_name">DoubleTap</string>
     <string name="enter_folder">폴더명을 입력하세요.</string>
+    <string name="file_add">file_add</string>
 </resources>
