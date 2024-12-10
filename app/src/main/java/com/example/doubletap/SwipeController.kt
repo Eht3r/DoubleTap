@@ -1,26 +1,25 @@
 package com.example.doubletap
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.view.MotionEvent
-import android.view.View
-import android.view.View.OnTouchListener
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.ItemTouchHelper.ACTION_STATE_SWIPE
 import androidx.recyclerview.widget.RecyclerView
-import kotlinx.coroutines.currentCoroutineContext
+import kotlin.math.abs
 
 interface SwipeControllerActions {
     fun onLeftClicked(position: Int)
     fun onRightClicked(position: Int)
 }
 
-class SwipeController(private val context: Context, private val actions:
-        SwipeControllerActions): ItemTouchHelper.Callback() {
+class SwipeController(
+    private val actions:
+    SwipeControllerActions
+): ItemTouchHelper.Callback() {
 
     private val paint = Paint()
     private var swipeBack = false
@@ -32,7 +31,17 @@ class SwipeController(private val context: Context, private val actions:
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder
     ): Int {
-        return makeMovementFlags(0, ItemTouchHelper.LEFT)
+        val position = viewHolder.adapterPosition
+        val item = (recyclerView.adapter as MainAdapter).items[position]
+
+        return if (item.name == "폴더 추가") {
+            makeMovementFlags(0, 0)
+        }else if (viewHolder is FileListAdapter.AddViewHolder) {
+            makeMovementFlags(0, 0)
+        }
+        else {
+            makeMovementFlags(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT)
+        }
     }
 
     // 스와이프 이벤트 발생 시 호출
@@ -61,37 +70,55 @@ class SwipeController(private val context: Context, private val actions:
     ) {
         if (actionState == ACTION_STATE_SWIPE) {
             val itemView = viewHolder.itemView
+            val itemWidth = itemView.width
+            val maxSwipeDistance = itemWidth / 2
 
-            val buttonWWidthWithoutPadding = 300f // 각 버튼의 너비 설정
-            val buttonWidth = buttonWWidthWithoutPadding + 20 // 버튼 너비 설정
+            val limitedDx = when {
+                dX > maxSwipeDistance -> maxSwipeDistance.toFloat()
+                dX < -maxSwipeDistance -> -maxSwipeDistance.toFloat()
+                else -> dX
+            }
 
-            if (dX < 0) {
+            if (limitedDx < 0) { // 왼쪽으로 스와이프
                 // 삭제 버튼
                 paint.color = Color.RED
                 val deleteButton = RectF(
-                    itemView.right + dX,
+                    itemView.right + limitedDx,
                     itemView.top.toFloat(),
                     itemView.right.toFloat(),
                     itemView.bottom.toFloat()
                 )
                 c.drawRect(deleteButton, paint)
                 drawText("삭제", c, deleteButton, paint)
-
+                buttonInstance = deleteButton
+            } else if(limitedDx > 0) { // 오른쪽으로 스와이프
                 // 공유 버튼
                 paint.color = Color.BLUE
                 val shareButton = RectF(
-                    itemView.right + dX + buttonWidth,
+                    itemView.left.toFloat(),
                     itemView.top.toFloat(),
-                    itemView.right + dX + 2 * buttonWidth,
+                    itemView.left + limitedDx,
                     itemView.bottom.toFloat()
                 )
                 c.drawRect(shareButton, paint)
                 drawText("공유", c, shareButton, paint)
-
-                buttonInstance = if (dX < -buttonWWidthWithoutPadding) deleteButton else shareButton
+                buttonInstance = shareButton
             }
+
+            // 요소가 사라지지 않도록 trainslateX 설정
+            itemView.translationX = limitedDx
+
+            //  반대 방향으로 스와이프 시 버튼 초기화
+            if ((buttonShowedState == ButtonsState.RIGHT_VISIBLE && dX > -maxSwipeDistance) ||
+                (buttonShowedState == ButtonsState.LEFT_VISIBLE && dX < -maxSwipeDistance)
+                ) {
+                buttonShowedState = ButtonsState.GONE
+                buttonInstance = null
+                itemView.translationX = 0f // 원래 워치로 복귀
+            }
+        } else {
+            super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
         }
-        super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
     }
 
     // 버튼의 텍스트 그리기
@@ -113,14 +140,36 @@ class SwipeController(private val context: Context, private val actions:
     override fun onChildDrawOver(
         c: Canvas,
         recyclerView: RecyclerView,
-        viewHolder: RecyclerView.ViewHolder?,
+        viewHolder: RecyclerView.ViewHolder,
         dX: Float,
         dY: Float,
         actionState: Int,
         isCurrentlyActive: Boolean
     ) {
+        val itemView = viewHolder.itemView
+        val itemWidth = itemView.width
+        val maxSwipeDistance = itemWidth /2
+
         if (buttonInstance != null && isCurrentlyActive) {
-            setTouchListener(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+            if ((buttonShowedState == ButtonsState.RIGHT_VISIBLE && dX < -maxSwipeDistance) ||
+                (buttonShowedState == ButtonsState.LEFT_VISIBLE && dX > -maxSwipeDistance)
+            ) {
+                // 반대 방향 스와이프 시 포기화
+                buttonShowedState = ButtonsState.GONE
+                buttonInstance = null
+
+                recyclerView.adapter?.notifyItemChanged(viewHolder!!.adapterPosition)
+            } else {
+                setTouchListener(
+                    c,
+                    recyclerView,
+                    viewHolder,
+                    dX,
+                    dY,
+                    actionState,
+                    isCurrentlyActive
+                )
+            }
             super.onChildDrawOver(
                 c,
                 recyclerView,
@@ -148,15 +197,23 @@ class SwipeController(private val context: Context, private val actions:
                 event.action == MotionEvent.ACTION_CANCEL || event.action == MotionEvent.ACTION_UP
 
             if (swipeBack) {
-                if (buttonInstance != null &&
-                    buttonInstance!!.contains(event.x, event.y)
-                ) {
-                    if (dX < -150)
-                        actions.onRightClicked(viewHolder!!.adapterPosition)
-                    else actions.onLeftClicked(viewHolder!!.adapterPosition)
+                if (buttonInstance != null && buttonInstance!!.contains(event.x, event.y)) {
+                    if (abs(dX) < 50) { // 스와이프가 아닌 경우에만 클릭 처리
+                        if (dX < 0) actions.onRightClicked(viewHolder!!.adapterPosition)
+                        else actions.onLeftClicked(viewHolder!!.adapterPosition)
+                    }
+                } else {
+                    buttonShowedState = ButtonsState.GONE
+                    buttonInstance = null
                 }
                 setItemsClickable(recyclerView, true)
                 swipeBack = false
+            } else if (event.action == MotionEvent.ACTION_DOWN) {
+                if (buttonShowedState != ButtonsState.GONE) {
+                    buttonShowedState = ButtonsState.GONE
+                    buttonInstance = null
+                    recyclerView.adapter?.notifyItemChanged(viewHolder!!.adapterPosition)
+                }
             }
             false
         }

@@ -1,6 +1,7 @@
 package com.example.doubletap
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -9,20 +10,20 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.example.doubletap.databinding.ActivityFileListBinding
-import java.io.File
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView.ItemDecoration
+import com.example.doubletap.databinding.ActivityFileListBinding
 import com.google.android.material.textfield.TextInputEditText
+import java.io.File
 
 class FileListActivity : AppCompatActivity() {
-    private lateinit var binding: ActivityFileListBinding
-    private lateinit var adapter: FileListAdapter
     private lateinit var rootDir: File
     private lateinit var rootFolderName: String
-    private var folderCount: Int = 0
+    private lateinit var binding: ActivityFileListBinding
+    private lateinit var adapter: FileListAdapter
 
-    private var items = mutableListOf<Files>()
+    private var folderCount: Int = 0
+    private val items = mutableListOf<Files>()
 
 
     @SuppressLint("SetTextI18n")
@@ -33,12 +34,17 @@ class FileListActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         val intent = intent
-        folderCount = File(intent.getStringExtra("rootDir")!!).listFiles { folder -> folder.isDirectory }?.size ?: 0
+        folderCount =
+            File(intent.getStringExtra("rootDir")!!).listFiles { folder -> folder.isDirectory }?.size
+                ?: 0
         rootDir = intent.getStringExtra("folderDir")?.let { File(it) }!!
         rootFolderName = intent.getStringExtra("folderName")!!
 
         binding.folderLayout.folderName.visibility = View.GONE
         binding.folderLayout.fileCount.text = "${folderCount}개의 폴더"
+        binding.folderLayout.root.setOnClickListener {
+            finish()
+        }
 
         binding.swipeLayout.setOnRefreshListener {
             loadFiles()
@@ -47,11 +53,14 @@ class FileListActivity : AppCompatActivity() {
 
         binding.folder.text = rootFolderName
 
+
         adapter = FileListAdapter(items) { file ->
             if (!file.file.exists()) {
                 showAddFileDialog()
             } else {
-                // 나머지 아이템 클릭시 이벤트 처리
+                val editIntent = Intent(this, EditTextActivity::class.java)
+                editIntent.putExtra("file", file.file.absolutePath)
+                startActivity(editIntent)
             }
         }
         binding.recyclerView.adapter = adapter
@@ -71,6 +80,22 @@ class FileListActivity : AppCompatActivity() {
         }
 
         loadFiles()
+
+        // 스와이프 기능 추가
+        val swipeController = SwipeController(object : SwipeControllerActions {
+            override fun onLeftClicked(position: Int) {
+                // 선택한 파일 가져오기
+                val file = items[position].file
+                // 압축 파일 공유
+                Funbox().shareFile(this@FileListActivity, file)
+            }
+
+            override fun onRightClicked(position: Int) {
+                adapter.deleteItem(position)
+            }
+        })
+        val itemTouchHelper = ItemTouchHelper(swipeController)
+        itemTouchHelper.attachToRecyclerView(binding.recyclerView)
     }
 
     @SuppressLint("NotifyDataSetChanged")

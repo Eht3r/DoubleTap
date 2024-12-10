@@ -7,7 +7,7 @@ import  androidx.recyclerview.widget.RecyclerView
 import com.example.doubletap.databinding.FolderBinding
 
 class MainAdapter(
-    private val items: MutableList<Folder>,
+    val items: MutableList<Folder>,
     private val itemClickListener: (Folder) -> Unit
 ) : RecyclerView.Adapter<MainAdapter.ViewHolder>() {
 

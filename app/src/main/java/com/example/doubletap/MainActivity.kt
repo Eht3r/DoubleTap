@@ -2,34 +2,29 @@ package com.example.doubletap
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.doubletap.databinding.ActivityMainBinding
 import com.google.android.material.textfield.TextInputEditText
-import java.io.BufferedOutputStream
 import java.io.File
-import java.io.FileOutputStream
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var adapter: MainAdapter
-    private var items = mutableListOf(Folder(File("")))
+    var items = mutableListOf(Folder(File("")))
     private val rootDir = File(
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
         "DoubleTap"
@@ -96,16 +91,21 @@ class MainActivity : AppCompatActivity() {
         loadFolders()
 
         // 스와이프 기능 추가
-        val swipeController = SwipeController(this, object : SwipeControllerActions {
+        val swipeController = SwipeController(object : SwipeControllerActions {
             override fun onLeftClicked(position: Int) {
                 // 선택한 폴더 가져오기
                 val folder = items[position].folder
-                // 압축 파일 생성
-                val zipFile = File(getExternalFilesDir(null), "${folder.name}.zip")
+                // 압축 파일 경로
+                val outputZipFileDir = File(rootDir, "${folder.name}.zip")
                 // 폴더를 zip 파일로 압축
-                compressFolder(folder, zipFile)
+                Funbox().compressFolderToZip(folder, outputZipFileDir)
+                Toast.makeText(this@MainActivity, "압축 완료", Toast.LENGTH_SHORT).show()
+                Log.d("zip", "Compressed to: ${outputZipFileDir.exists()}")
+                Thread.sleep(100)
                 // 압축 파일 공유
-                shareFile(this@MainActivity, zipFile)
+                Funbox().shareFile(this@MainActivity, outputZipFileDir)
+                // 공유 후 압축 파일 삭제
+                outputZipFileDir.delete()
             }
 
             override fun onRightClicked(position: Int) {
@@ -179,43 +179,14 @@ class MainActivity : AppCompatActivity() {
     // 새로운 폴더를 추가
     private fun addNewFolder(folderName: String) {
         val newFolder = File(rootDir, folderName)
-        if (newFolder.mkdir() || newFolder.exists()) {
+        if (newFolder.exists()) Toast.makeText(this, "이미 동일한 이름의 폴더가 존재합니다.", Toast.LENGTH_SHORT).show()
+        else if (newFolder.mkdir()) {
             items.removeAll { it.name == folderName }
             val newItem = Folder(newFolder)
-            items.add(items.size - 1, newItem)
-            adapter.notifyItemInserted(items.size - 2)
+            items.add(1, newItem)
+            adapter.notifyItemInserted(1)
         } else {
             Log.e("addNewFolder", "Failed to create folder")
         }
     }
-
-    // 폴더 압축
-    private fun compressFolder(folder: File, zipFile: File) {
-        ZipOutputStream(BufferedOutputStream(FileOutputStream(zipFile))).use { out ->
-            folder.walkTopDown().forEach { file ->
-                val entryName = file.relativeTo(folder).path
-                out.putNextEntry(ZipEntry(entryName))
-                if (file.isFile) {
-                    file.inputStream().use { it.copyTo(out) }
-                }
-                out.closeEntry()
-            }
-        }
-    }
-
-    // 파일 공유
-    fun shareFile(context: Context, zipFile: File) {
-        // FileProvider를 사용하여 파일의 URI 생성
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", zipFile)
-        // Intent를 사용하여 공유 작업 시작
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/zip"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-
-        // 공유할 앱 선택 창 표시
-        context.startActivity(Intent.createChooser(intent, "폴더 공유"))
-    }
-
 }
