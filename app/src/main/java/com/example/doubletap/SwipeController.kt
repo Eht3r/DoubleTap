@@ -34,6 +34,8 @@ class SwipeController(
     ): Int {
         val position = viewHolder.adapterPosition
         val adapter = recyclerView.adapter
+        Log.d("getMovementFlags", "position: $position")
+        Log.d("getMovementFlags", "adapter: $adapter")
         val item = if (adapter is MainAdapter){
             adapter.items[position]
         } else {
@@ -155,7 +157,6 @@ class SwipeController(
         actionState: Int,
         isCurrentlyActive: Boolean
     ) {
-        Log.d("setTouchListener", "dX: $dX")
         val itemView = viewHolder.itemView
         val itemWidth = itemView.width
         val menuWidth = itemWidth * 0.3f  // 메뉴 너비를 아이템 너비의 30%로 설정
@@ -205,7 +206,6 @@ class SwipeController(
         isCurrentlyActive: Boolean
     ) {
         recyclerView.setOnTouchListener { _, event ->
-            Log.d("setTouchListener", "event: $event")
             Log.d("setTouchListener", "dX1: $dX")
             swipeBack =
                 event.action == MotionEvent.ACTION_CANCEL || event.action == MotionEvent.ACTION_UP
@@ -216,7 +216,7 @@ class SwipeController(
                     val itemWidth = viewHolder?.itemView?.width ?: 0
                     val swipeThreshold = itemWidth * 0.3f  // 아이템 너비의 30%를 기준으로 설정
                     Log.d("setTouchListener", "swipeThreshold: $swipeThreshold")
-                    val isClicked = abs(dX) >= swipeThreshold  // 스와이프 거리가 기준값보다 작으면 클릭으로 간주
+                    val isClicked = abs(dX) >= swipeThreshold  // 스와이프가 아닌 클릭인지 판단
                     if (isClicked) { // 스와이프가 아닌 경우에만 클릭 처리
                         Log.d("setTouchListener", "buttonInstance2: $buttonInstance")
                         if (dX < 0) actions.onRightClicked(viewHolder!!.adapterPosition)
@@ -242,9 +242,7 @@ class SwipeController(
     }
     private fun setItemsClickable(recyclerView: RecyclerView, isClickable: Boolean) {
         for (i in 0 until recyclerView.childCount) {
-            Log.d("setTouchListener", "i: $i")
             recyclerView.getChildAt(i).isClickable = isClickable
-            Log.d("setTouchListener", "isClickable: ${recyclerView.getChildAt(i).isClickable}")
         }
     }
 

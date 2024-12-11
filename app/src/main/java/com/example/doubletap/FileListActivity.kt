@@ -147,12 +147,13 @@ class FileListActivity : AppCompatActivity() {
 
     // 새로운 파일을 추가
     private fun addNewFile(fileName: String) {
+        Log.d("addNewFile", "Adding new file: $fileName")
         val newFile = File(rootDir, "$fileName.md")
         if (newFile.createNewFile() || newFile.exists()) {
             items.removeAll { it.name == fileName }
             val newItem = Files(newFile)
             items.add(items.size, newItem)
-            adapter.notifyItemInserted(items.size - 1)
+            adapter.notifyItemInserted(items.size)
         } else {
             Log.e("addNewFile", "Failed to create file: $fileName")
         }
