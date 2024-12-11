@@ -5,6 +5,7 @@ import android.view.View
 import androidx.recyclerview.widget.RecyclerView
 
 class FileListAdapterDecoration : RecyclerView.ItemDecoration() {
+    // RecyclerView에 아이템 간격 추가
     override fun getItemOffsets(
         outRect: Rect,
         view: View,

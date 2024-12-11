@@ -12,6 +12,7 @@ import java.io.FileOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
+// 여러번 쓰이는 함수 모음
 class Funbox {
     // 폴더 압축
     fun compressFolderToZip(folder: File, outputZipFileDir: File) {
@@ -20,8 +21,8 @@ class Funbox {
         }
     }
 
-    fun compressFolder(folder: File, parentPath: String, zipOut: ZipOutputStream) {
-        folder.listFiles()?.forEach { file ->
+    private fun compressFolder(folder: File, parentPath: String, zipOut: ZipOutputStream) {
+        folder.listFiles()?.forEach { file -> // 폴더 내 파일들을 하나씩 처리
             val zipEntryName = "$parentPath/${file.name}"
             if (file.isDirectory) {
                 // 디렉토리일 경우 재귀적으로 처리
@@ -34,7 +35,7 @@ class Funbox {
 
                     val buffer = ByteArray(1024)
                     var length: Int
-                    while (input.read(buffer).also { length = it} > 0) {
+                    while (input.read(buffer).also { length = it} > 0) { // 파일 내용을 읽어서 zip에 쓰기
                         zipOut.write(buffer, 0, length)
                     }
 

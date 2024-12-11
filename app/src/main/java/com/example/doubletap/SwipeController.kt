@@ -34,6 +34,7 @@ class SwipeController(
         val position = viewHolder.adapterPosition
         val item = (recyclerView.adapter as MainAdapter).items[position]
 
+        // 폴더 추가와 파일 추가 아이템에는 스와이프가 동작되면 안됨
         return if (item.name == "폴더 추가") {
             makeMovementFlags(0, 0)
         }else if (viewHolder is FileListAdapter.AddViewHolder) {
@@ -58,7 +59,7 @@ class SwipeController(
         // 사용 안함, ItemTouchHelper 사용시 필수 오버라이딩
     }
 
-    // 메뉴 그리기
+    // 메뉴 그리기 (항목의 배경을 그림)
     override fun onChildDraw(
         c: Canvas,
         recyclerView: RecyclerView,
@@ -106,6 +107,7 @@ class SwipeController(
             }
 
             // 요소가 사라지지 않도록 trainslateX 설정
+            // 스와이프를 요소의 절반 크기 정도만 진행하도록 제한
             itemView.translationX = limitedDx
 
             //  반대 방향으로 스와이프 시 버튼 초기화
@@ -137,6 +139,7 @@ class SwipeController(
         c.drawText(text, button.centerX() - textWidth / 2, button.centerY() + textSize / 2, p)
     }
 
+    // 그려진 매뉴 위에 추가적인 그래픽 요소 추가
     override fun onChildDrawOver(
         c: Canvas,
         recyclerView: RecyclerView,
@@ -182,6 +185,7 @@ class SwipeController(
         }
     }
 
+    // 메뉴 클릭 처리
     @SuppressLint("ClickableViewAccessibility")
     private fun setTouchListener(
         c: Canvas,
@@ -202,7 +206,7 @@ class SwipeController(
                         if (dX < 0) actions.onRightClicked(viewHolder!!.adapterPosition)
                         else actions.onLeftClicked(viewHolder!!.adapterPosition)
                     }
-                } else {
+                } else { // 스와이프시 원상 복귀
                     buttonShowedState = ButtonsState.GONE
                     buttonInstance = null
                 }
@@ -224,6 +228,7 @@ class SwipeController(
         }
     }
 
+    // 버튼 상태 지정
     enum class ButtonsState {
         GONE,
         LEFT_VISIBLE,

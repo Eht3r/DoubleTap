@@ -64,7 +64,9 @@ class FileListActivity : AppCompatActivity() {
             }
         }
         binding.recyclerView.adapter = adapter
+        // RecyclerView에 아이템 간격 추가
         binding.recyclerView.addItemDecoration(FileListAdapterDecoration())
+        // RecyclerView에 레이아웃 매니저 설정
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
 
         // 상단바와 UI 요소 겹침 문제 해결
