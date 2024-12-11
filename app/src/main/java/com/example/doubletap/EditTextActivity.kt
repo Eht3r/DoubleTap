@@ -160,7 +160,7 @@ class EditTextActivity : AppCompatActivity() {
             'H' -> addMarkdownSyntax(editText, "# ") // Header
             'I' -> addMarkdownSyntax(editText, "*", "*") // Italic
             'L' -> addMarkdownSyntax(editText, "---") // Line divider
-            'M' -> addMarkdownSyntax(editText, "$\n", "\n$") // Math block
+            'M' -> addMarkdownSyntax(editText, "$$\n", "\n$$") // Math block
             'S' -> addMarkdownSyntax(editText, "~~", "~~") // Strikethrough
             'T' -> createDynamicTable(editText) // Table
         }
