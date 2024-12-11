@@ -37,6 +37,7 @@ class EditTextActivity : AppCompatActivity() {
         val editText = binding.editText
         val textView = binding.textView
 
+        // fileListActivity에서 파일 경로 받아오기
         val intent = intent
         val file = intent.getStringExtra("file")?.let { File(it) }
 
@@ -55,8 +56,6 @@ class EditTextActivity : AppCompatActivity() {
 
         // 입력된 Markdown 렌더링
         markwon.setMarkdown(textView, content ?: "")
-
-        isFirstRun = true
 
         editText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -233,6 +232,7 @@ class EditTextActivity : AppCompatActivity() {
     // 파일 내용 불러오기
     private fun loadFile(file: File): String {
         Log.d("EditTextActivity", "loadFile 호출됨")
+        isFirstRun = true
         return try {
             if (file.exists()) {
                 file.readText()
