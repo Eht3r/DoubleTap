@@ -86,14 +86,18 @@ class FileListActivity : AppCompatActivity() {
         // 스와이프 기능 추가
         val swipeController = SwipeController(object : SwipeControllerActions {
             override fun onLeftClicked(position: Int) {
+                val reposition = position - 1
+                Log.d("setTouchListener", "Left clicked at $reposition")
                 // 선택한 파일 가져오기
-                val file = items[position].file
+                val file = items[reposition].file
                 // 압축 파일 공유
                 Funbox().shareFile(this@FileListActivity, file)
             }
 
             override fun onRightClicked(position: Int) {
-                adapter.deleteItem(position)
+                val reposition = position - 1
+                Log.d("setTouchListener", "Right clicked at $reposition")
+                adapter.deleteItem(reposition)
             }
         })
         val itemTouchHelper = ItemTouchHelper(swipeController)

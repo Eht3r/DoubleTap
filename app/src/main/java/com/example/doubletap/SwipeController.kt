@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.util.Log
 import android.view.MotionEvent
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.ItemTouchHelper.ACTION_STATE_SWIPE
@@ -32,10 +33,15 @@ class SwipeController(
         viewHolder: RecyclerView.ViewHolder
     ): Int {
         val position = viewHolder.adapterPosition
-        val item = (recyclerView.adapter as MainAdapter).items[position]
+        val adapter = recyclerView.adapter
+        val item = if (adapter is MainAdapter){
+            adapter.items[position]
+        } else {
+            null
+        }
 
         // 폴더 추가와 파일 추가 아이템에는 스와이프가 동작되면 안됨
-        return if (item.name == "폴더 추가") {
+        return if (item?.name == "폴더 추가") {
             makeMovementFlags(0, 0)
         }else if (viewHolder is FileListAdapter.AddViewHolder) {
             makeMovementFlags(0, 0)
@@ -72,11 +78,11 @@ class SwipeController(
         if (actionState == ACTION_STATE_SWIPE) {
             val itemView = viewHolder.itemView
             val itemWidth = itemView.width
-            val maxSwipeDistance = itemWidth / 2
+            val menuWidth = itemWidth * 0.3f  // 메뉴 너비를 아이템 너비의 30%로 설정
 
             val limitedDx = when {
-                dX > maxSwipeDistance -> maxSwipeDistance.toFloat()
-                dX < -maxSwipeDistance -> -maxSwipeDistance.toFloat()
+                dX > menuWidth -> menuWidth
+                dX < -menuWidth -> -menuWidth
                 else -> dX
             }
 
@@ -111,8 +117,8 @@ class SwipeController(
             itemView.translationX = limitedDx
 
             //  반대 방향으로 스와이프 시 버튼 초기화
-            if ((buttonShowedState == ButtonsState.RIGHT_VISIBLE && dX > -maxSwipeDistance) ||
-                (buttonShowedState == ButtonsState.LEFT_VISIBLE && dX < -maxSwipeDistance)
+            if ((buttonShowedState == ButtonsState.RIGHT_VISIBLE && dX > -menuWidth) ||
+                (buttonShowedState == ButtonsState.LEFT_VISIBLE && dX < -menuWidth)
                 ) {
                 buttonShowedState = ButtonsState.GONE
                 buttonInstance = null
@@ -149,20 +155,22 @@ class SwipeController(
         actionState: Int,
         isCurrentlyActive: Boolean
     ) {
+        Log.d("setTouchListener", "dX: $dX")
         val itemView = viewHolder.itemView
         val itemWidth = itemView.width
-        val maxSwipeDistance = itemWidth /2
+        val menuWidth = itemWidth * 0.3f  // 메뉴 너비를 아이템 너비의 30%로 설정
 
         if (buttonInstance != null && isCurrentlyActive) {
-            if ((buttonShowedState == ButtonsState.RIGHT_VISIBLE && dX < -maxSwipeDistance) ||
-                (buttonShowedState == ButtonsState.LEFT_VISIBLE && dX > -maxSwipeDistance)
+            if ((buttonShowedState == ButtonsState.RIGHT_VISIBLE && dX < -menuWidth) ||
+                (buttonShowedState == ButtonsState.LEFT_VISIBLE && dX > -menuWidth)
             ) {
                 // 반대 방향 스와이프 시 포기화
                 buttonShowedState = ButtonsState.GONE
                 buttonInstance = null
 
-                recyclerView.adapter?.notifyItemChanged(viewHolder!!.adapterPosition)
+                recyclerView.adapter?.notifyItemChanged(viewHolder.adapterPosition)
             } else {
+                Log.d("setTouchListener", "buttonInstance0: $buttonInstance")
                 setTouchListener(
                     c,
                     recyclerView,
@@ -197,22 +205,32 @@ class SwipeController(
         isCurrentlyActive: Boolean
     ) {
         recyclerView.setOnTouchListener { _, event ->
+            Log.d("setTouchListener", "event: $event")
+            Log.d("setTouchListener", "dX1: $dX")
             swipeBack =
                 event.action == MotionEvent.ACTION_CANCEL || event.action == MotionEvent.ACTION_UP
 
             if (swipeBack) {
                 if (buttonInstance != null && buttonInstance!!.contains(event.x, event.y)) {
-                    if (abs(dX) < 50) { // 스와이프가 아닌 경우에만 클릭 처리
+                    Log.d("setTouchListener", "buttonInstance1: $buttonInstance")
+                    val itemWidth = viewHolder?.itemView?.width ?: 0
+                    val swipeThreshold = itemWidth * 0.3f  // 아이템 너비의 30%를 기준으로 설정
+                    Log.d("setTouchListener", "swipeThreshold: $swipeThreshold")
+                    val isClicked = abs(dX) >= swipeThreshold  // 스와이프 거리가 기준값보다 작으면 클릭으로 간주
+                    if (isClicked) { // 스와이프가 아닌 경우에만 클릭 처리
+                        Log.d("setTouchListener", "buttonInstance2: $buttonInstance")
                         if (dX < 0) actions.onRightClicked(viewHolder!!.adapterPosition)
                         else actions.onLeftClicked(viewHolder!!.adapterPosition)
                     }
                 } else { // 스와이프시 원상 복귀
+                    Log.d("setTouchListener", "buttonInstance3: $buttonInstance")
                     buttonShowedState = ButtonsState.GONE
                     buttonInstance = null
                 }
                 setItemsClickable(recyclerView, true)
                 swipeBack = false
             } else if (event.action == MotionEvent.ACTION_DOWN) {
+                Log.d("setTouchListener", "event: $event")
                 if (buttonShowedState != ButtonsState.GONE) {
                     buttonShowedState = ButtonsState.GONE
                     buttonInstance = null
@@ -224,7 +242,9 @@ class SwipeController(
     }
     private fun setItemsClickable(recyclerView: RecyclerView, isClickable: Boolean) {
         for (i in 0 until recyclerView.childCount) {
+            Log.d("setTouchListener", "i: $i")
             recyclerView.getChildAt(i).isClickable = isClickable
+            Log.d("setTouchListener", "isClickable: ${recyclerView.getChildAt(i).isClickable}")
         }
     }
 
