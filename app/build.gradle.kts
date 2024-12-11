@@ -41,6 +41,12 @@ android {
 
 dependencies {
 
+    // Markwon 라이브러리 의존성 추가
+    implementation("io.noties.markwon:core:4.6.2") // 최신 버전 확인
+    implementation("io.noties.markwon:ext-strikethrough:4.6.2") // 필요에 따라 추가
+    implementation("io.noties.markwon:ext-latex:4.6.2")
+    implementation("io.noties.markwon:ext-tables:4.6.2")
+
     implementation(libs.material.v190)
     implementation(libs.androidx.cardview)
     implementation(libs.androidx.swiperefreshlayout)
