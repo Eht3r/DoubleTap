@@ -1,8 +1,11 @@
 package com.example.doubletap
 
+import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
+import android.text.SpannableStringBuilder
 import android.text.TextWatcher
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.widget.EditText
 import android.widget.TextView
@@ -10,6 +13,7 @@ import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.text.toSpannable
 import com.example.doubletap.databinding.ActivityEditTextBinding
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.latex.JLatexMathPlugin
@@ -26,6 +30,7 @@ class EditTextActivity : AppCompatActivity() {
     private var lastChar: Char? = null
     private var repeatCount = 0
     private val markdownStack = ArrayDeque<String>()
+    private var guideCount = 0;
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,7 +85,7 @@ class EditTextActivity : AppCompatActivity() {
                             lastChar = ' '
                             repeatCount = 0
                         }
-                    } else if (currentChar in listOf('B', 'I', 'S', 'H', 'T', 'L', 'C', 'M')) {
+                    } else if (currentChar in listOf('B', 'I', 'S', 'H', 'T', 'L', 'C', 'M', 'D')) {
                         // 특정 키 처리
                         if (currentChar == lastChar) {
                             repeatCount++
@@ -100,6 +105,24 @@ class EditTextActivity : AppCompatActivity() {
                     }
                 }
                 markwon.setMarkdown(textView, inputText) // Markdown 렌더링
+
+                val currentText = textView.text.toSpannable()
+                val lastMarkdown = if (markdownStack.isNotEmpty()) markdownStack.last() else ""
+                guideCount = lastMarkdown.length
+
+                val spannableStringBuilder = SpannableStringBuilder(lastMarkdown)
+
+                val startIndex = 0
+                val endIndex = guideCount
+
+                spannableStringBuilder.setSpan(
+                    ForegroundColorSpan(Color.GRAY),
+                    startIndex,
+                    endIndex,
+                    0
+                )
+
+                textView.text = SpannableStringBuilder(currentText).append(spannableStringBuilder)
             }
         })
 
@@ -132,13 +155,14 @@ class EditTextActivity : AppCompatActivity() {
 
         when (char) {
             'B' -> addMarkdownSyntax(editText, "**", "**") // Bold
-            'I' -> addMarkdownSyntax(editText, "*", "*") // Italic
-            'S' -> addMarkdownSyntax(editText, "~~", "~~") // Strikethrough
-            'H' -> addMarkdownSyntax(editText, "# ") // Header
-            'T' -> createDynamicTable(editText) // Table
-            'L' -> addMarkdownSyntax(editText, "---") // Line divider
             'C' -> addMarkdownSyntax(editText, "`", "`") // Code block
-            'M' ->addMarkdownSyntax(editText, "$$\n", "\n$$")
+            'D' -> addMarkdownSyntax(editText, "[", ")", "](") // Link
+            'H' -> addMarkdownSyntax(editText, "# ") // Header
+            'I' -> addMarkdownSyntax(editText, "*", "*") // Italic
+            'L' -> addMarkdownSyntax(editText, "---") // Line divider
+            'M' -> addMarkdownSyntax(editText, "$\n", "\n$") // Math block
+            'S' -> addMarkdownSyntax(editText, "~~", "~~") // Strikethrough
+            'T' -> createDynamicTable(editText) // Table
         }
     }
 
