@@ -3,9 +3,11 @@ package com.example.doubletap
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.example.doubletap.databinding.ActivityEditTextBinding
@@ -14,22 +16,29 @@ import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
+import java.io.File
 
 class EditTextActivity : AppCompatActivity() {
     private lateinit var markwon: Markwon
     private lateinit var binding: ActivityEditTextBinding
+
+    private var isFirstRun = false
     private var lastChar: Char? = null
     private var repeatCount = 0
     private val markdownStack = ArrayDeque<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        binding = ActivityEditTextBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
 //        markwon = Markwon.create(this)
 
         val editText = binding.editText
         val textView = binding.textView
+
+        val intent = intent
+        val file = intent.getStringExtra("file")?.let { File(it) }
 
         markwon = Markwon.builder(this)
             .usePlugin(MarkwonInlineParserPlugin.create()) // 인라인 파서 플러그인 추가
@@ -39,6 +48,15 @@ class EditTextActivity : AppCompatActivity() {
             .usePlugin(TablePlugin.create(this))
             .usePlugin(StrikethroughPlugin.create())
             .build()
+
+        // 파일 내용 불러오기
+        val content = file?.let { loadFile(it) }
+        editText.setText(content)
+
+        // 입력된 Markdown 렌더링
+        markwon.setMarkdown(textView, content ?: "")
+
+        isFirstRun = true
 
         editText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -85,6 +103,26 @@ class EditTextActivity : AppCompatActivity() {
                 markwon.setMarkdown(textView, inputText) // Markdown 렌더링
             }
         })
+
+        // 5분 마다 저장하기
+        val autoSave = object : Runnable {
+            override fun run() {
+                if (file != null && !isFirstRun) {
+                    saveFile(file, editText.text.toString())
+                }
+                editText.postDelayed(this, 300000)
+            }
+        }
+
+        // 뒤로 가기 등의 방법으로 액티비티 종료시 저장
+        onBackPressedDispatcher.addCallback(this) {
+            if (file != null) {
+                saveFile(file, editText.text.toString())
+            }
+            finish()
+        }
+
+        editText.post(autoSave)
     }
 
     private fun handleDoubleTap(char: Char, editText: EditText) {
@@ -178,5 +216,33 @@ class EditTextActivity : AppCompatActivity() {
             "No Markdown in stack."
         }
         stackPreview.text = previewText
+    }
+
+    // editText에 작성된 내용 파일로 저장
+    private fun saveFile(file: File, content: String) {
+        Log.d("EditTextActivity", "saveFile 호출됨")
+        try {
+            file.writeText(content)
+            Toast.makeText(this, "저장 되었습니다.", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e("EditTextActivity", "파일 저장 실패: ${e.message}")
+            Toast.makeText(this, "파일 저장 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 파일 내용 불러오기
+    private fun loadFile(file: File): String {
+        Log.d("EditTextActivity", "loadFile 호출됨")
+        return try {
+            if (file.exists()) {
+                file.readText()
+            } else {
+                ""
+            }
+        } catch (e: Exception) {
+            Log.e("EditTextActivity", "파일 불러오기 실패: ${e.message}")
+            Toast.makeText(this, "파일 불러오기 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+            ""
+        }
     }
 }
