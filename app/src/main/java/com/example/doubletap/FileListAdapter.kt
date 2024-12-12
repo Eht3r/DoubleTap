@@ -75,9 +75,9 @@ class FileListAdapter(
 
     // 아이템 삭제
     fun deleteItem(position: Int) {
-        items.removeAt(position)
-        notifyItemRemoved(position)
-        notifyItemRangeChanged(position, itemCount)
-        items[position - 1].file.delete()
+        items[position].file.delete() // 파일 삭제
+        items.removeAt(position) // 리스트에서 아이템 제거
+        notifyItemRemoved(position) // 아이템 제거 알림
+        notifyItemRangeChanged(position, itemCount) // 아이템 범위 변경 알림
     }
 }
