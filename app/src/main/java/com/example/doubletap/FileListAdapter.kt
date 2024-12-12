@@ -78,5 +78,6 @@ class FileListAdapter(
         items.removeAt(position)
         notifyItemRemoved(position)
         notifyItemRangeChanged(position, itemCount)
+        items[position - 1].file.delete()
     }
 }
