@@ -3,6 +3,7 @@ package com.example.doubletap
 import android.graphics.Color
 import android.os.Bundle
 import android.text.Editable
+import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
@@ -21,6 +22,7 @@ import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import java.io.File
+import kotlin.math.min
 
 class EditTextActivity : AppCompatActivity() {
     private lateinit var markwon: Markwon
@@ -110,19 +112,24 @@ class EditTextActivity : AppCompatActivity() {
                 val lastMarkdown = if (markdownStack.isNotEmpty()) markdownStack.last() else ""
                 guideCount = lastMarkdown.length
 
-                val spannableStringBuilder = SpannableStringBuilder(lastMarkdown)
+                guideCount = min(guideCount, currentText.length)
 
-                val startIndex = 0
-                val endIndex = guideCount
 
-                spannableStringBuilder.setSpan(
-                    ForegroundColorSpan(Color.GRAY),
-                    startIndex,
-                    endIndex,
-                    0
-                )
-
-                textView.text = SpannableStringBuilder(currentText).append(spannableStringBuilder)
+                // guideCount 값이 텍스트의 실제 길이보다 작은지 확인
+                if (guideCount < currentText.length) {
+                    // SpannableStringBuilder를 사용하여 스팬 적용
+                    val spannableStringBuilder = SpannableStringBuilder(lastMarkdown)
+                    spannableStringBuilder.setSpan(
+                        ForegroundColorSpan(Color.GRAY),
+                        0,
+                        guideCount,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                    textView.text = SpannableStringBuilder(currentText).append(spannableStringBuilder)
+                } else {
+                    // guideCount 값이 텍스트의 실제 길이보다 크거나 같으면 스팬 적용하지 않음
+                    textView.text = currentText
+                }
             }
         })
 
