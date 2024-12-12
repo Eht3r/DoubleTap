@@ -1,5 +1,6 @@
 package com.example.doubletap
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -48,16 +49,24 @@ class Funbox {
     }
 
     // 파일 공유
+    @SuppressLint("QueryPermissionsNeeded")
     fun shareFile(context: Context, file: File) {
         Log.d("shareFile", file.absolutePath)
         // FileProvider를 사용하여 파일의 URI 생성
         val uri = FileProvider.getUriForFile(context, "com.example.doubletap.provider", file)
 
-        // Intent를 사용하여 공유 작업 시작
-        val intent = Intent(Intent.ACTION_SEND).apply {
+        var intent = Intent(Intent.ACTION_SEND).apply {
             type = "application/*"
             putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        }
+
+        // Intent를 사용하여 공유 작업 시작
+        val targetPackage = intent.resolveActivity(context.packageManager)?.packageName
+        if (targetPackage != null) {
+            context.grantUriPermission(targetPackage, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            context.grantUriPermission(targetPackage, uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         }
 
         // 공유할 앱 선택 창 표시
