@@ -2,10 +2,13 @@ package com.example.doubletap
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -13,8 +16,10 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.documentfile.provider.DocumentFile
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.doubletap.databinding.ActivityMainBinding
@@ -32,6 +37,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 1001
+        private const val REQUEST_CODE_OPEN_DOCUMENT_TREE = 1002
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -97,15 +103,8 @@ class MainActivity : AppCompatActivity() {
                 val folder = items[position].folder
                 // 압축 파일 경로
                 val outputZipFileDir = File(rootDir, "${folder.name}.zip")
-                // 폴더를 zip 파일로 압축
-                Funbox().compressFolderToZip(folder, outputZipFileDir)
-                Toast.makeText(this@MainActivity, "압축 완료", Toast.LENGTH_SHORT).show()
-                Log.d("zip", "Compressed to: ${outputZipFileDir.exists()}")
-                Thread.sleep(100)
-                // 압축 파일 공유
-                Funbox().shareFile(this@MainActivity, outputZipFileDir)
-                // 공유 후 압축 파일 삭제
-                outputZipFileDir.delete()
+                // 폴더에 대한 접근 권한 요청
+                requestFolderAccess(folder)
             }
 
             override fun onRightClicked(position: Int) {
@@ -187,6 +186,41 @@ class MainActivity : AppCompatActivity() {
             adapter.notifyItemInserted(1)
         } else {
             Log.e("addNewFolder", "Failed to create folder")
+        }
+    }
+
+    // 폴더에 대한 접근 권한을 얻는 함수
+    private fun requestFolderAccess(folder: File) {
+        val folderUri = Uri.fromFile(folder)
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            putExtra(DocumentsContract.EXTRA_INITIAL_URI, folderUri)
+        }
+        startActivityForResult(intent, REQUEST_CODE_OPEN_DOCUMENT_TREE)
+    }
+
+    // onActivityResult()에서 선택된 폴더 Uri를 가져옴
+    @Deprecated("This method has been deprecated in favor of using the Activity Result API\n      which brings increased type safety via an {@link ActivityResultContract} and the prebuilt\n      contracts for common intents available in\n      {@link androidx.activity.result.contract.ActivityResultContracts}, provides hooks for\n      testing, and allow receiving results in separate, testable classes independent from your\n      activity. Use\n      {@link #registerForActivityResult(ActivityResultContract, ActivityResultCallback)}\n      with the appropriate {@link ActivityResultContract} and handling the result in the\n      {@link ActivityResultCallback#onActivityResult(Object) callback}.")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == REQUEST_CODE_OPEN_DOCUMENT_TREE && resultCode == Activity.RESULT_OK) {
+            val treeUri = data?.data // 선택된 폴더 Uri
+
+            // 폴더에 대한 접근 권한을 유지
+            contentResolver.takePersistableUriPermission(
+                treeUri!!,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+
+            // 압축 로직 실행
+            val outputZipFile = File(rootDir, "${DocumentFile.fromTreeUri(this, treeUri)?.name}.zip") // Uri를 File 객체로 변환
+            Funbox().compressFolderToZip(this, treeUri, outputZipFile)
+            Thread.sleep(100)
+            // 압축 파일 공유
+            Funbox().shareFile(this@MainActivity, outputZipFile)
+            // 공유 후 압축 파일 삭제
+            outputZipFile.delete()
+
         }
     }
 }

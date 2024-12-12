@@ -2,10 +2,11 @@ package com.example.doubletap
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.FileProvider
-import java.io.BufferedOutputStream
+import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -14,34 +15,35 @@ import java.util.zip.ZipOutputStream
 
 // 여러번 쓰이는 함수 모음
 class Funbox {
+
     // 폴더 압축
-    fun compressFolderToZip(folder: File, outputZipFileDir: File) {
-        ZipOutputStream(BufferedOutputStream(FileOutputStream(outputZipFileDir))).use { zipOut ->
-            compressFolder(folder, folder.name, zipOut)
-        }
-    }
+    fun compressFolderToZip(context: Context, folderUri: Uri, outputZipFile: File) {
+        try {
+            val fos = FileOutputStream(outputZipFile)
+            val zos = ZipOutputStream(fos)
 
-    private fun compressFolder(folder: File, parentPath: String, zipOut: ZipOutputStream) {
-        folder.listFiles()?.forEach { file -> // 폴더 내 파일들을 하나씩 처리
-            val zipEntryName = "$parentPath/${file.name}"
-            if (file.isDirectory) {
-                // 디렉토리일 경우 재귀적으로 처리
-                compressFolder(file, zipEntryName, zipOut)
-            } else {
-                // 파일일 경우 zip에 추가
-                FileInputStream(file).use { input ->
-                    val entry = ZipEntry(zipEntryName)
-                    zipOut.putNextEntry(entry)
+            // DocumentFile API를 사용하여 폴더 내부의 파일을 순회
+            val folder = DocumentFile.fromTreeUri(context, folderUri)
+            folder?.listFiles()?.forEach { file ->
+                if (file.isFile) {
+                    val fileName = file.name
+                    val entry = ZipEntry(fileName)
+                    zos.putNextEntry(entry)
 
-                    val buffer = ByteArray(1024)
-                    var length: Int
-                    while (input.read(buffer).also { length = it} > 0) { // 파일 내용을 읽어서 zip에 쓰기
-                        zipOut.write(buffer, 0, length)
+                    // ContentResolver를 사용하여 파일 내용 읽기
+                    val inputStream = context.contentResolver.openInputStream(file.uri)
+                    inputStream?.use {
+                        it.copyTo(zos)
                     }
 
-                    zipOut.closeEntry()
+                    zos.closeEntry()
                 }
             }
+
+            zos.close()
+            fos.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -49,14 +51,11 @@ class Funbox {
     fun shareFile(context: Context, file: File) {
         Log.d("shareFile", file.absolutePath)
         // FileProvider를 사용하여 파일의 URI 생성
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+        val uri = FileProvider.getUriForFile(context, "com.example.doubletap.provider", file)
+
         // Intent를 사용하여 공유 작업 시작
         val intent = Intent(Intent.ACTION_SEND).apply {
-            type = if (file.extension == "zip") {
-                "application/zip"
-            } else {
-                "application/markdown"
-            }
+            type = "application/*"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }

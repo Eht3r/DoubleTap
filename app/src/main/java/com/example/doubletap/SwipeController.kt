@@ -26,6 +26,7 @@ class SwipeController(
     private var swipeBack = false
     private var buttonShowedState = ButtonsState.GONE
     private var buttonInstance: RectF? = null
+    private var swipePostion = -1
 
     // 스와이프 방향 설정
     override fun getMovementFlags(
@@ -34,9 +35,14 @@ class SwipeController(
     ): Int {
         val position = viewHolder.adapterPosition
         val adapter = recyclerView.adapter
+
+        if (swipePostion != -1 && swipePostion != viewHolder.adapterPosition) {
+            return makeMovementFlags(0, 0)
+        }
+
         Log.d("getMovementFlags", "position: $position")
         Log.d("getMovementFlags", "adapter: $adapter")
-        val item = if (adapter is MainAdapter){
+        val item = if (adapter is MainAdapter && position != -1){
             adapter.items[position]
         } else {
             null
@@ -114,8 +120,6 @@ class SwipeController(
                 buttonInstance = shareButton
             }
 
-            // 요소가 사라지지 않도록 trainslateX 설정
-            // 스와이프를 요소의 절반 크기 정도만 진행하도록 제한
             itemView.translationX = limitedDx
 
             //  반대 방향으로 스와이프 시 버튼 초기화
@@ -125,6 +129,10 @@ class SwipeController(
                 buttonShowedState = ButtonsState.GONE
                 buttonInstance = null
                 itemView.translationX = 0f // 원래 워치로 복귀
+            }
+
+            if (isCurrentlyActive) {
+                swipePostion = viewHolder.adapterPosition
             }
         } else {
             super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
@@ -165,7 +173,7 @@ class SwipeController(
             if ((buttonShowedState == ButtonsState.RIGHT_VISIBLE && dX < -menuWidth) ||
                 (buttonShowedState == ButtonsState.LEFT_VISIBLE && dX > -menuWidth)
             ) {
-                // 반대 방향 스와이프 시 포기화
+                // 반대 방향 스와이프 시 초기화
                 buttonShowedState = ButtonsState.GONE
                 buttonInstance = null
 
@@ -182,6 +190,7 @@ class SwipeController(
                     isCurrentlyActive
                 )
             }
+
             super.onChildDrawOver(
                 c,
                 recyclerView,
@@ -205,18 +214,20 @@ class SwipeController(
         actionState: Int,
         isCurrentlyActive: Boolean
     ) {
+        var isSwipingOnButton = false // 버튼 영역에서 스와이프 중인지 여부
+
         recyclerView.setOnTouchListener { _, event ->
             Log.d("setTouchListener", "dX1: $dX")
             swipeBack =
                 event.action == MotionEvent.ACTION_CANCEL || event.action == MotionEvent.ACTION_UP
 
             if (swipeBack) {
-                if (buttonInstance != null && buttonInstance!!.contains(event.x, event.y)) {
+                if (buttonInstance != null && buttonInstance!!.contains(event.x, event.y) && isSwipingOnButton) {
                     Log.d("setTouchListener", "buttonInstance1: $buttonInstance")
                     val itemWidth = viewHolder?.itemView?.width ?: 0
                     val swipeThreshold = itemWidth * 0.3f  // 아이템 너비의 30%를 기준으로 설정
                     Log.d("setTouchListener", "swipeThreshold: $swipeThreshold")
-                    val isClicked = abs(dX) >= swipeThreshold  // 스와이프가 아닌 클릭인지 판단
+                    val isClicked = abs(dX) >= swipeThreshold // 스와이프가 아닌 클릭인지 판단
                     if (isClicked) { // 스와이프가 아닌 경우에만 클릭 처리
                         Log.d("setTouchListener", "buttonInstance2: $buttonInstance")
                         if (dX < 0) actions.onRightClicked(viewHolder!!.adapterPosition)
@@ -229,12 +240,17 @@ class SwipeController(
                 }
                 setItemsClickable(recyclerView, true)
                 swipeBack = false
-            } else if (event.action == MotionEvent.ACTION_DOWN) {
-                Log.d("setTouchListener", "event: $event")
-                if (buttonShowedState != ButtonsState.GONE) {
-                    buttonShowedState = ButtonsState.GONE
-                    buttonInstance = null
-                    recyclerView.adapter?.notifyItemChanged(viewHolder!!.adapterPosition)
+                isSwipingOnButton = false
+
+                swipePostion = -1
+            } else {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        isSwipingOnButton = buttonInstance?.contains(event.x, event.y) ?: false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        isSwipingOnButton = buttonInstance?.contains(event.x, event.y) ?: false
+                    }
                 }
             }
             false
